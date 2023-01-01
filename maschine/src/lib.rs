@@ -1,4 +1,4 @@
-use crate::devices::MaschineMikroMk2;
+use devices::MaschineMikroMk2;
 use hidapi::HidApi;
 
 mod colour;

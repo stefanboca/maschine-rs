@@ -3,7 +3,7 @@
 ///
 /// All Glyphs are formatted for easy insertion into a data table
 ///
-use clap::{AppSettings, Clap};
+use clap::Parser;
 use std::fs::File;
 use std::io::Read;
 
@@ -74,9 +74,8 @@ fn generate_glyphs(bm: bitmap::Bitmap, glyph_width: usize, glyph_height: usize) 
     glyphs
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 #[clap(version = "1.0", author = "Tim Savage <tim@savage.company>")]
-#[clap(setting = AppSettings::ColoredHelp)]
 struct Opts {
     file_path: String,
     #[clap(short, long, default_value = "5")]

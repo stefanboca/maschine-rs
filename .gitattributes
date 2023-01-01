@@ -1,0 +1,2 @@
+maschine-cli/nx5-font.bmp filter=lfs diff=lfs merge=lfs -text
+maschine-cli/nx6-font.bmp filter=lfs diff=lfs merge=lfs -text

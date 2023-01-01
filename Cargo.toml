@@ -1,18 +1,3 @@
-[package]
-name = "maschine"
-version = "0.1.0"
-authors = ["Tim Savage <tim@savage.company>"]
-repository = "https://github.com/timsavage/maschine-rs"
-description = "For interacting with a Native Instruments Maschine interface over USB"
-license = "MIT"
-keywords = ["hid", "usb", "maschine", "re-use"]
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-rand = "^0.8.5"
-hidapi = "^1.4.1"
-
-
 [workspace]
-members = ["example", "tools"]
+members = ["maschine", "maschine-tools"]
+resolver = "2"
