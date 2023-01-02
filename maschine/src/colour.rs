@@ -55,11 +55,23 @@ impl Colour {
         b: 0xFF,
     };
     #[allow(dead_code)]
-    pub const RED: Colour = Colour { r: 0xFF, g: 0, b: 0 };
+    pub const RED: Colour = Colour {
+        r: 0xFF,
+        g: 0,
+        b: 0,
+    };
     #[allow(dead_code)]
-    pub const GREEN: Colour = Colour { r: 0, g: 0xFF, b: 0 };
+    pub const GREEN: Colour = Colour {
+        r: 0,
+        g: 0xFF,
+        b: 0,
+    };
     #[allow(dead_code)]
-    pub const BLUE: Colour = Colour { r: 0, g: 0, b: 0xFF };
+    pub const BLUE: Colour = Colour {
+        r: 0,
+        g: 0,
+        b: 0xFF,
+    };
 
     /// Construct a new colour
     pub fn new(r: u8, g: u8, b: u8) -> Self {
