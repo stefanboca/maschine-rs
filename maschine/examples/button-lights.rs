@@ -13,11 +13,11 @@ fn main() {
         // Handle any generated events
         while !context.events.is_empty() {
             let event = context.events.pop_front().unwrap();
+            println!("{event:?}");
             match event {
                 Event::Button(button, pressed, shift) => {
                     if pressed {
                         ctlr.set_button_led(button, Colour::random());
-                        println!("{:?}", button);
                     } else if !shift {
                         ctlr.set_button_led(button, Colour::BLACK);
                     }
@@ -32,7 +32,7 @@ fn main() {
                         },
                     );
                 }
-                _ => println!("{:?}", event),
+                _ => {}
             }
         }
     }
