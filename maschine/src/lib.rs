@@ -13,7 +13,7 @@ pub use colour::Colour;
 pub use controller::Controller;
 pub use display::{Canvas, Font, Pixel, ScrollDirection};
 pub use error::Error;
-pub use events::{Event, EventContext, EventHandler, EventTask};
+pub use events::{Event, EventContext, EventTask};
 
 pub fn get_device(hid_api: &HidApi) -> Result<devices::MaschineMk2, error::Error> {
     let device = hid_api
