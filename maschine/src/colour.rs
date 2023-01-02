@@ -1,4 +1,4 @@
-use rand::{thread_rng, Rng};
+use rand::Rng;
 
 const COLOURS: [Colour; 6] = [
     Colour {
@@ -107,7 +107,6 @@ impl Colour {
     /// Convert colour into a 24bit value
     ///
     pub fn as_u24(&self) -> u32 {
-        let c = self.r as u32 | ((self.g as u32) << 8) | ((self.b as u32) << 16);
-        c
+        self.r as u32 | ((self.g as u32) << 8) | ((self.b as u32) << 16)
     }
 }

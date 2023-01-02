@@ -198,7 +198,7 @@ impl MaschineMikroMk2 {
 
         // Scan buttons
         for btn in BUTTON_SHIFT..BUTTON_NONE {
-            let button_pressed = is_button_pressed(&buffer, btn);
+            let button_pressed = is_button_pressed(buffer, btn);
             if button_pressed != self.button_states[btn as usize] {
                 self.button_states[btn as usize] = button_pressed;
 
@@ -384,17 +384,15 @@ impl MaschineMikroMk2 {
 
 impl Controller for MaschineMikroMk2 {
     fn set_button_led(&mut self, button: Button, colour: Colour) {
-        match self.button_to_led(button) {
-            Some(led) => self.set_led(led, colour),
-            None => (),
-        };
+        if let Some(led) = self.button_to_led(button) {
+            self.set_led(led, colour);
+        }
     }
 
     fn set_pad_led(&mut self, pad: u8, colour: Colour) {
-        match self.pad_to_led(pad) {
-            Some(led) => self.set_led(led, colour),
-            None => (),
-        };
+        if let Some(led) = self.pad_to_led(pad) {
+            self.set_led(led, colour);
+        }
     }
 }
 

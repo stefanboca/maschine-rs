@@ -56,6 +56,7 @@ impl CompressionMethod {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct FileHeader {
     file_size: u32,
     // reserved: [u16; 2],
@@ -74,6 +75,7 @@ impl FileHeader {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct DIBHeader {
     version: BitmapVersion,
     width: i32,
@@ -121,6 +123,7 @@ pub struct Colour {
     pub blue: u8,
 }
 
+#[allow(dead_code)]
 pub struct Bitmap {
     file_header: FileHeader,
     pub dib_header: DIBHeader,
@@ -151,11 +154,11 @@ impl Bitmap {
     }
 
     pub fn width(&self) -> usize {
-        self.dib_header.width.abs() as usize
+        self.dib_header.width.unsigned_abs() as usize
     }
 
     pub fn height(&self) -> usize {
-        self.dib_header.height.abs() as usize
+        self.dib_header.height.unsigned_abs() as usize
     }
 
     pub fn pixel(&self, x: usize, y: usize) -> Colour {
@@ -206,7 +209,7 @@ fn read_pixel_data(
     let mut pixels = [0u8; 3];
     for _ in 0..dib_header.height {
         for _ in 0..dib_header.width {
-            reader.read(&mut pixels)?;
+            reader.read_exact(&mut pixels)?;
             data.push(Colour {
                 red: pixels[2],
                 green: pixels[1],

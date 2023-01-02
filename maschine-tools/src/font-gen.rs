@@ -102,18 +102,16 @@ fn main() -> Result<(), bitmap::Error> {
         opts.width,
         glyphs.len()
     );
-    for idx in 0..glyphs.len() {
-        let mut slices = glyphs[idx].data.clone();
-        for _ in 0..(opts.width - glyphs[idx].width) {
-            slices.push(0);
-        }
+    for (idx, glyph) in glyphs.iter().enumerate() {
+        let mut slices = glyph.data.clone();
+        slices.extend(vec![0; opts.width - glyph.width]);
 
         println!(
             "    ({}, [{}]),  // {}",
-            glyphs[idx].width,
+            glyph.width,
             slices
                 .iter()
-                .map(|c| format!("{}", c))
+                .map(|c| format!("{c}"))
                 .collect::<Vec<String>>()
                 .join(", "),
             ((0x20 + idx) as u8) as char

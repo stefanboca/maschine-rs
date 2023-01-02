@@ -73,15 +73,14 @@ pub enum Button {
 ///
 /// Context object for adding events
 ///
+#[derive(Default)]
 pub struct EventContext {
     pub events: VecDeque<Event>,
 }
 
 impl EventContext {
     pub fn new() -> Self {
-        EventContext {
-            events: VecDeque::new(),
-        }
+        Self::default()
     }
 
     ///

@@ -17,7 +17,7 @@ pub enum Error {
 
 impl std::fmt::Display for Error {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match &*self {
+        match self {
             Error::HidAPI(e) => e.fmt(fmt), // Pass on to HIDAPI interface
             Error::InvalidReport => {
                 write!(fmt, "Report is either two small or not parsable")

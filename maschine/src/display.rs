@@ -150,7 +150,7 @@ impl MonochromeCanvas {
     pub fn from_buffer(width: usize, height: usize, buffer: &[u8]) -> Self {
         let buffer_size = (width * height) / 8;
         if buffer.len() != buffer_size {
-            panic!("Buffer must be {} bytes long", buffer_size)
+            panic!("Buffer must be {buffer_size} bytes long")
         }
 
         MonochromeCanvas {
@@ -312,15 +312,15 @@ impl Canvas<Pixel> for MonochromeCanvas {
     ///
     fn print_char(&mut self, c: char, row: usize, col: usize, font: &Font, colour: Pixel) -> usize {
         let raw = c as usize;
-        if raw < 0x20 || raw > 0x7F {
+        if !(0x20..=0x7F).contains(&raw) {
             return 0;
         }
         let char_idx = raw - 0x20;
         let (width, glyph) = font[char_idx];
-        for slice in 0..(width as usize) {
+        for (slice, px) in glyph.iter().enumerate().take(width as usize) {
             self.buffer[(row * self.width) + col + slice] = match colour {
-                Pixel::On => glyph[slice] << 2,
-                Pixel::Off => !(glyph[slice] << 2),
+                Pixel::On => px << 2,
+                Pixel::Off => !(px << 2),
             }
         }
         self.dirty = true;
