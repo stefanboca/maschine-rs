@@ -13,9 +13,9 @@ pub enum Event {
     Button(Button, bool, bool),
 
     ///
-    /// Encoder change (Encoder Number, Direction, Shift)
+    /// Encoder change (Encoder Number, value, delta, Shift)
     ///
-    Encoder(u8, Direction, bool),
+    Encoder(u8, u16, i16, bool),
 
     ///
     /// Pad change (Pad Number, Velocity, Shift)
@@ -24,21 +24,19 @@ pub enum Event {
 }
 
 ///
-/// Direction of encoder
-///
-#[derive(Debug, Copy, Clone)]
-#[allow(dead_code)]
-pub enum Direction {
-    Up,
-    Down,
-}
-
-///
 /// Button Identifiers
 ///
 #[derive(Debug, Copy, Clone)]
 #[allow(dead_code)]
 pub enum Button {
+    Display1,
+    Display2,
+    Display3,
+    Display4,
+    Display5,
+    Display6,
+    Display7,
+    Display8,
     Erase,
     Rec,
     Play,
@@ -50,12 +48,29 @@ pub enum Button {
     NoteRepeat,
     Sampling,
     Browse,
+    All,
+    Autowrite,
+    Volume,
+    Swing,
+    Tempo,
+    Enter,
     Group,
+    GroupA,
+    GroupB,
+    GroupC,
+    GroupD,
+    GroupE,
+    GroupF,
+    GroupG,
+    GroupH,
     Main,
     BrowseRight,
     BrowseLeft,
+    MainRight,
+    MainLeft,
     Nav,
     Control,
+    Step,
     F3,
     F2,
     F1,

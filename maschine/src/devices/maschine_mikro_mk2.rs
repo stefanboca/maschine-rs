@@ -4,7 +4,7 @@ use crate::colour::Colour;
 use crate::controller::Controller;
 use crate::display::{Canvas, MonochromeCanvas};
 use crate::error::Error;
-use crate::events::{Button, Direction, Event, EventContext, EventTask};
+use crate::events::{Button, Event, EventContext, EventTask};
 
 const INPUT_BUFFER_SIZE: usize = 512;
 
@@ -85,7 +85,6 @@ pub const BUTTON_VIEW: u8 = 0x1C;
 pub const BUTTON_PAD_MODE: u8 = 0x1D;
 pub const BUTTON_PATTERN: u8 = 0x1E;
 pub const BUTTON_SCENE: u8 = 0x1F;
-pub const BUTTON_NONE: u8 = 0x20;
 
 const LED_COUNT: usize = 78;
 const BUTTON_COUNT: usize = 45;
@@ -197,7 +196,7 @@ impl MaschineMikroMk2 {
         }
 
         // Scan buttons
-        for btn in BUTTON_SHIFT..BUTTON_NONE {
+        for btn in BUTTON_SHIFT..=BUTTON_SCENE {
             let button_pressed = is_button_pressed(buffer, btn);
             if button_pressed != self.button_states[btn as usize] {
                 self.button_states[btn as usize] = button_pressed;
@@ -222,16 +221,21 @@ impl MaschineMikroMk2 {
         // Handle encoder data
         let encoder_value = buffer[4];
         if self.encoder_value != encoder_value {
-            let direction = if ((self.encoder_value < encoder_value)
-                | ((self.encoder_value == 0x0f) && (encoder_value == 0x00)))
-                & (!((self.encoder_value == 0x00) & (encoder_value == 0x0f)))
-            {
-                Direction::Down
+            let encoder_range = 0x10;
+
+            let pos_delta =
+                ((encoder_range + encoder_value - self.encoder_value) % encoder_range) as i16;
+            let neg_delta =
+                ((encoder_range - encoder_value + self.encoder_value) % encoder_range) as i16;
+
+            let delta = if pos_delta < neg_delta {
+                pos_delta
             } else {
-                Direction::Up
+                -neg_delta
             };
+
             self.encoder_value = encoder_value;
-            context.add_event(Event::Encoder(0, direction, self.shift_pressed));
+            context.add_event(Event::Encoder(0, encoder_value as u16, delta, self.shift_pressed));
         }
 
         Ok(())

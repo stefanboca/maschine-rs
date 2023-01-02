@@ -1,4 +1,3 @@
-use crate::events::Direction;
 ///
 /// # Display interface
 ///
@@ -16,6 +15,15 @@ pub type Font = [(u8, [u8; 5]); 96];
 pub enum Pixel {
     On,
     Off,
+}
+
+///
+/// Scroll Direction
+///
+#[derive(Debug, Copy, Clone)]
+pub enum ScrollDirection {
+    Up,
+    Down,
 }
 
 ///
@@ -122,7 +130,7 @@ pub trait Canvas<T: Clone> {
     ///
     /// Vertical scroll the rows in a particular direction
     ///
-    fn vscroll_rows(&mut self, row_start: usize, row_end: usize, direction: Direction);
+    fn vscroll_rows(&mut self, row_start: usize, row_end: usize, direction: ScrollDirection);
 }
 
 ///
@@ -330,11 +338,11 @@ impl Canvas<Pixel> for MonochromeCanvas {
     ///
     /// Vertical scroll the rows in a particular direction
     ///
-    fn vscroll_rows(&mut self, row_start: usize, row_end: usize, direction: Direction) {
+    fn vscroll_rows(&mut self, row_start: usize, row_end: usize, direction: ScrollDirection) {
         let start = min(row_start, row_end) * self.width;
         let end = max(row_start, row_end) * self.width;
         match direction {
-            Direction::Up => {
+            ScrollDirection::Up => {
                 for row in (start..end).rev() {
                     self.buffer[row + self.width] = self.buffer[row];
                 }
@@ -342,7 +350,7 @@ impl Canvas<Pixel> for MonochromeCanvas {
                     self.buffer[row] = 0;
                 }
             }
-            Direction::Down => {
+            ScrollDirection::Down => {
                 for row in start..end {
                     self.buffer[row] = self.buffer[row + self.width];
                 }
