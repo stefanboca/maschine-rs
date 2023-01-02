@@ -13,6 +13,9 @@ pub enum Error {
 
     /// Unexpected control returned from hardware device
     UnknownControl,
+
+    /// Tried to write to non-existant display
+    InvalidDisplay
 }
 
 impl std::fmt::Display for Error {
@@ -24,6 +27,9 @@ impl std::fmt::Display for Error {
             }
             Error::UnknownControl => {
                 write!(fmt, "Unexpected control returned from hardware device")
+            }
+            Error::InvalidDisplay => {
+                write!(fmt, "Attempted to write to invalid display")
             }
         }
     }

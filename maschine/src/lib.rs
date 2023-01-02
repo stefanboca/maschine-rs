@@ -1,4 +1,4 @@
-use devices::MaschineMikroMk2;
+use devices::MaschineMk2;
 use hidapi::HidApi;
 
 mod colour;
@@ -11,19 +11,16 @@ pub mod fonts;
 
 pub use colour::Colour;
 pub use controller::Controller;
-pub use display::{Canvas, Font, Pixel};
+pub use display::{Canvas, Font, Pixel, ScrollDirection};
 pub use error::Error;
-pub use events::{Direction, Event, EventContext, EventHandler, EventTask};
+pub use events::{Event, EventContext, EventHandler, EventTask};
 
-pub fn get_device(hid_api: &HidApi) -> Result<devices::MaschineMikroMk2, error::Error> {
+pub fn get_device(hid_api: &HidApi) -> Result<devices::MaschineMk2, error::Error> {
     let device = hid_api
-        .open(
-            devices::MaschineMikroMk2::VENDOR_ID,
-            MaschineMikroMk2::PRODUCT_ID,
-        )
+        .open(devices::MaschineMk2::VENDOR_ID, MaschineMk2::PRODUCT_ID)
         .expect("Cannot open device");
 
-    Ok(devices::MaschineMikroMk2::new(device))
+    Ok(devices::MaschineMk2::new(device))
 }
 
 #[cfg(test)]

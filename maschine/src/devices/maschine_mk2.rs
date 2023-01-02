@@ -131,6 +131,7 @@ const BUTTON_COUNT: usize = 48;
 const PAD_COUNT: usize = 16;
 const ENCODER_COUNT: usize = 9;
 
+const DISPLAY_COUNT: u8 = 2;
 const DISPLAY_ADDR: u8 = 0xE0;
 
 const BUTTON_LED_ADDR: u8 = 0x82;
@@ -148,7 +149,7 @@ const PAD_LED_COUNT: usize = 49;
 pub struct MaschineMk2 {
     pub device: HidDevice,
     tick_state: u8,
-    pub display: MonochromeCanvas,
+    pub displays: [MonochromeCanvas; DISPLAY_COUNT as usize],
 
     button_leds: [u8; BUTTON_LED_COUNT],
     button_leds_dirty: bool,
@@ -174,7 +175,10 @@ impl MaschineMk2 {
         MaschineMk2 {
             device,
             tick_state: 0,
-            display: MonochromeCanvas::new(128, 64),
+            displays: [
+                MonochromeCanvas::new(256, 64),
+                MonochromeCanvas::new(256, 64),
+            ],
 
             button_leds: [0; BUTTON_LED_COUNT],
             button_leds_dirty: true,
@@ -194,28 +198,31 @@ impl MaschineMk2 {
     }
 
     /// Send a display frame for the graphics panel
-    fn send_frame(&mut self) -> Result<(), Error> {
-        if self.display.is_dirty() {
-            for row in (0..8).step_by(2) {
+    fn send_frame(&mut self, display_idx: u8) -> Result<(), Error> {
+        if display_idx >= DISPLAY_COUNT {
+            return Err(Error::InvalidDisplay);
+        }
+        if self.displays[display_idx as usize].is_dirty() {
+            for chunk in 0..8 {
                 // The number of referenced bytes must be <= 256
                 // Eg Column width * number of rows
                 let mut buffer: Vec<u8> = vec![
-                    DISPLAY_ADDR,
-                    0x00,      // Column offset
-                    0x00,      // ?
-                    row as u8, // Row (a row is 8 pixels high)
-                    0x00,      // ?
-                    0x80,      // Columns per row, 128 is full width
-                    0x00,      // ?
-                    0x02,      // Number of rows
-                    0x00,      // ?
+                    DISPLAY_ADDR | display_idx,
+                    0x00,            // Column offset
+                    0x00,            // ?
+                    (chunk * 8) as u8, // Row (a row is 8 pixels high)
+                    0x00,            // ?
+                    0x20,            // Columns per row, 128 is full width
+                    0x00,            // ?
+                    0x08,            // Number of rows
+                    0x00,            // ?
                 ];
-                let x_offset = row * 128;
-                buffer.extend_from_slice(&self.display.data()[x_offset..(x_offset + 256)]);
+                let x_offset = chunk * 256;
+                buffer.extend_from_slice(&self.displays[display_idx as usize].data()[x_offset..(x_offset + 256)]);
                 self.device.write(buffer.as_slice())?;
             }
+            self.displays[display_idx as usize].clear_dirty_flag();
         }
-        self.display.clear_dirty_flag();
 
         Ok(())
     }
@@ -552,7 +559,9 @@ impl Controller for MaschineMk2 {
 impl EventTask for MaschineMk2 {
     fn tick(&mut self, context: &mut EventContext) -> Result<(), Error> {
         if self.tick_state == 0 {
-            self.send_frame()?;
+            for i in 0..DISPLAY_COUNT {
+                self.send_frame(i)?;
+            }
         } else if self.tick_state == 1 {
             self.send_leds()?;
         } else if self.tick_state == 2 {
