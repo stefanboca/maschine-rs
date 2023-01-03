@@ -115,4 +115,3 @@ pub trait EventTask {
     ///
     fn tick(&mut self, context: &mut EventContext) -> Result<(), Error>;
 }
-

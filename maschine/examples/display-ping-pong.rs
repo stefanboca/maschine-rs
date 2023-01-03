@@ -1,11 +1,10 @@
-use hidapi::HidApi;
-use maschine::{get_device, Canvas, EventContext, EventTask, Pixel, ScrollDirection};
+use maschine::{Device, EventContext, EventTask, MaschineMk2, Pixel, ScrollDirection};
 
 fn main() {
-    let hid_api = HidApi::new().unwrap();
-    let mut ctlr = get_device(&hid_api).unwrap();
-    ctlr.displays[0].fill_row(7, Pixel::On);
-    ctlr.displays[1].fill_row(0, Pixel::On);
+    let mut ctlr = MaschineMk2::new().unwrap();
+
+    ctlr.get_display(0).unwrap().fill_row(7, Pixel::On);
+    ctlr.get_display(1).unwrap().fill_row(0, Pixel::On);
 
     let mut start_time = std::time::Instant::now();
     let mut step = 0;
@@ -18,8 +17,8 @@ fn main() {
 
         let current_time = std::time::Instant::now();
         if current_time.duration_since(start_time) > std::time::Duration::from_millis(200) {
-            ctlr.displays[0].vscroll_rows(0, 7, dir_1);
-            ctlr.displays[1].vscroll_rows(0, 7, dir_2);
+            ctlr.get_display(0).unwrap().vscroll_rows(0, 7, dir_1);
+            ctlr.get_display(1).unwrap().vscroll_rows(0, 7, dir_2);
             step += 1;
             if step % 7 == 0 {
                 (dir_1, dir_2) = (dir_2, dir_1);

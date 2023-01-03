@@ -14,8 +14,11 @@ pub enum Error {
     /// Unexpected control returned from hardware device
     UnknownControl,
 
-    /// Tried to write to non-existant display
-    InvalidDisplay
+    /// Attempted to access a non-existant display (display index)
+    InvalidDisplay(u8),
+
+    /// No devices found
+    NoDevices,
 }
 
 impl std::fmt::Display for Error {
@@ -28,8 +31,11 @@ impl std::fmt::Display for Error {
             Error::UnknownControl => {
                 write!(fmt, "Unexpected control returned from hardware device")
             }
-            Error::InvalidDisplay => {
-                write!(fmt, "Attempted to write to invalid display")
+            Error::InvalidDisplay(idx) => {
+                write!(fmt, "Attempted to access display at invalid index {idx}")
+            }
+            Error::NoDevices => {
+                write!(fmt, "No compatible device detected")
             }
         }
     }

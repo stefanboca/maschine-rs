@@ -1,10 +1,11 @@
-use hidapi::HidDevice;
+use hidapi::{HidApi, HidDevice};
 
 use crate::colour::Colour;
-use crate::controller::Controller;
+use crate::controller::Device;
 use crate::display::{Canvas, MonochromeCanvas};
 use crate::error::Error;
 use crate::events::{Button, Event, EventContext, EventTask};
+use crate::Pixel;
 
 const INPUT_BUFFER_SIZE: usize = 512;
 
@@ -99,9 +100,9 @@ const LED_ADDR: u8 = 0x80;
 /// Requires a valid HID device
 ///
 pub struct MaschineMikroMk2 {
-    pub device: HidDevice,
+    device: HidDevice,
     tick_state: u8,
-    pub display: MonochromeCanvas,
+    display: MonochromeCanvas,
     leds: [u8; LED_COUNT],
     leds_dirty: bool,
     button_states: [bool; BUTTON_COUNT],
@@ -114,21 +115,6 @@ pub struct MaschineMikroMk2 {
 impl MaschineMikroMk2 {
     pub const VENDOR_ID: u16 = 0x17cc;
     pub const PRODUCT_ID: u16 = 0x1200;
-
-    pub fn new(device: HidDevice) -> Self {
-        MaschineMikroMk2 {
-            device,
-            tick_state: 0,
-            display: MonochromeCanvas::new(128, 64),
-            leds: [0; LED_COUNT],
-            leds_dirty: true,
-            button_states: [false; BUTTON_COUNT],
-            shift_pressed: false,
-            pads_data: [0; PAD_COUNT],
-            pads_status: [false; PAD_COUNT],
-            encoder_value: 0,
-        }
-    }
 
     /// Send a display frame for the graphics panel
     fn send_frame(&mut self) -> Result<(), Error> {
@@ -235,7 +221,12 @@ impl MaschineMikroMk2 {
             };
 
             self.encoder_value = encoder_value;
-            context.add_event(Event::Encoder(0, encoder_value as u16, delta, self.shift_pressed));
+            context.add_event(Event::Encoder(
+                0,
+                encoder_value as u16,
+                delta,
+                self.shift_pressed,
+            ));
         }
 
         Ok(())
@@ -386,7 +377,23 @@ impl MaschineMikroMk2 {
     }
 }
 
-impl Controller for MaschineMikroMk2 {
+impl Device<Pixel> for MaschineMikroMk2 {
+    fn new() -> Result<Self, Error> {
+        let hid_api = HidApi::new()?;
+        Ok(MaschineMikroMk2 {
+            device: hid_api.open(MaschineMikroMk2::VENDOR_ID, MaschineMikroMk2::PRODUCT_ID)?,
+            tick_state: 0,
+            display: MonochromeCanvas::new(128, 64),
+            leds: [0; LED_COUNT],
+            leds_dirty: true,
+            button_states: [false; BUTTON_COUNT],
+            shift_pressed: false,
+            pads_data: [0; PAD_COUNT],
+            pads_status: [false; PAD_COUNT],
+            encoder_value: 0,
+        })
+    }
+
     fn set_button_led(&mut self, button: Button, colour: Colour) {
         if let Some(led) = self.button_to_led(button) {
             self.set_led(led, colour);
@@ -396,6 +403,14 @@ impl Controller for MaschineMikroMk2 {
     fn set_pad_led(&mut self, pad: u8, colour: Colour) {
         if let Some(led) = self.pad_to_led(pad) {
             self.set_led(led, colour);
+        }
+    }
+
+    fn get_display(&mut self, display_idx: u8) -> Result<Box<&mut dyn Canvas<Pixel>>, Error> {
+        if display_idx != 0 {
+            Err(Error::InvalidDisplay(display_idx))
+        } else {
+            Ok(Box::new(&mut self.display))
         }
     }
 }

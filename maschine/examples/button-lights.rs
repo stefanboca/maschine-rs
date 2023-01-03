@@ -1,9 +1,7 @@
-use hidapi::HidApi;
-use maschine::{get_device, Colour, Controller, Event, EventContext, EventTask};
+use maschine::{Colour, Device, Event, EventContext, EventTask, MaschineMk2};
 
 fn main() {
-    let hid_api = HidApi::new().unwrap();
-    let mut ctlr = get_device(&hid_api).unwrap();
+    let mut ctlr = MaschineMk2::new().unwrap();
 
     loop {
         // Allow controller to do work and update any events

@@ -1,10 +1,11 @@
-use hidapi::HidDevice;
+use hidapi::{HidApi, HidDevice};
 
 use crate::colour::Colour;
-use crate::controller::Controller;
+use crate::controller::Device;
 use crate::display::{Canvas, MonochromeCanvas};
 use crate::error::Error;
 use crate::events::{Button, Event, EventContext, EventTask};
+use crate::Pixel;
 
 const INPUT_BUFFER_SIZE: usize = 512;
 
@@ -147,9 +148,9 @@ const PAD_LED_COUNT: usize = 49;
 /// Requires a valid HID device
 ///
 pub struct MaschineMk2 {
-    pub device: HidDevice,
+    device: HidDevice,
     tick_state: u8,
-    pub displays: [MonochromeCanvas; DISPLAY_COUNT as usize],
+    displays: [MonochromeCanvas; DISPLAY_COUNT as usize],
 
     button_leds: [u8; BUTTON_LED_COUNT],
     button_leds_dirty: bool,
@@ -171,36 +172,10 @@ impl MaschineMk2 {
     pub const VENDOR_ID: u16 = 0x17cc;
     pub const PRODUCT_ID: u16 = 0x1140;
 
-    pub fn new(device: HidDevice) -> Self {
-        MaschineMk2 {
-            device,
-            tick_state: 0,
-            displays: [
-                MonochromeCanvas::new(256, 64),
-                MonochromeCanvas::new(256, 64),
-            ],
-
-            button_leds: [0; BUTTON_LED_COUNT],
-            button_leds_dirty: true,
-
-            group_leds: [0; GROUP_LED_COUNT],
-            group_leds_dirty: true,
-
-            pad_leds: [0; PAD_LED_COUNT],
-            pad_leds_dirty: true,
-
-            button_states: [false; BUTTON_COUNT],
-            shift_pressed: false,
-            pads_data: [0; PAD_COUNT],
-            pads_status: [false; PAD_COUNT],
-            encoder_values: [0; ENCODER_COUNT],
-        }
-    }
-
     /// Send a display frame for the graphics panel
     fn send_frame(&mut self, display_idx: u8) -> Result<(), Error> {
         if display_idx >= DISPLAY_COUNT {
-            return Err(Error::InvalidDisplay);
+            return Err(Error::InvalidDisplay(display_idx));
         }
         if self.displays[display_idx as usize].is_dirty() {
             for chunk in 0..8 {
@@ -208,17 +183,19 @@ impl MaschineMk2 {
                 // Eg Column width * number of rows
                 let mut buffer: Vec<u8> = vec![
                     DISPLAY_ADDR | display_idx,
-                    0x00,            // Column offset
-                    0x00,            // ?
+                    0x00,              // Column offset
+                    0x00,              // ?
                     (chunk * 8) as u8, // Row (a row is 8 pixels high)
-                    0x00,            // ?
-                    0x20,            // Columns per row, 128 is full width
-                    0x00,            // ?
-                    0x08,            // Number of rows
-                    0x00,            // ?
+                    0x00,              // ?
+                    0x20,              // Columns per row, 128 is full width
+                    0x00,              // ?
+                    0x08,              // Number of rows
+                    0x00,              // ?
                 ];
                 let x_offset = chunk * 256;
-                buffer.extend_from_slice(&self.displays[display_idx as usize].data()[x_offset..(x_offset + 256)]);
+                buffer.extend_from_slice(
+                    &self.displays[display_idx as usize].data()[x_offset..(x_offset + 256)],
+                );
                 self.device.write(buffer.as_slice())?;
             }
             self.displays[display_idx as usize].clear_dirty_flag();
@@ -542,7 +519,34 @@ impl MaschineMk2 {
     }
 }
 
-impl Controller for MaschineMk2 {
+impl Device<Pixel> for MaschineMk2 {
+    fn new() -> Result<Self, Error> {
+        let hid_api = HidApi::new()?;
+        Ok(MaschineMk2 {
+            device: hid_api.open(MaschineMk2::VENDOR_ID, MaschineMk2::PRODUCT_ID)?,
+            tick_state: 0,
+            displays: [
+                MonochromeCanvas::new(256, 64),
+                MonochromeCanvas::new(256, 64),
+            ],
+
+            button_leds: [0; BUTTON_LED_COUNT],
+            button_leds_dirty: true,
+
+            group_leds: [0; GROUP_LED_COUNT],
+            group_leds_dirty: true,
+
+            pad_leds: [0; PAD_LED_COUNT],
+            pad_leds_dirty: true,
+
+            button_states: [false; BUTTON_COUNT],
+            shift_pressed: false,
+            pads_data: [0; PAD_COUNT],
+            pads_status: [false; PAD_COUNT],
+            encoder_values: [0; ENCODER_COUNT],
+        })
+    }
+
     fn set_button_led(&mut self, button: Button, colour: Colour) {
         if let Some(led) = self.button_to_led(button) {
             self.set_led(led, colour);
@@ -552,6 +556,14 @@ impl Controller for MaschineMk2 {
     fn set_pad_led(&mut self, pad: u8, colour: Colour) {
         if let Some(led) = self.pad_to_led(pad) {
             self.set_led(led, colour);
+        }
+    }
+
+    fn get_display(&mut self, display_idx: u8) -> Result<Box<&mut dyn Canvas<Pixel>>, Error> {
+        if display_idx >= DISPLAY_COUNT {
+            Err(Error::InvalidDisplay(display_idx))
+        } else {
+            Ok(Box::new(&mut self.displays[display_idx as usize]))
         }
     }
 }
