@@ -86,7 +86,7 @@ pub trait Canvas<T: Clone> {
     fn fill_row(&mut self, row: usize, colour: T);
 
     /// Fill multiple rows with a single colour
-    fn fill_rows(&mut self, start_row: usize, end_row: usize, colour: MonoPixel);
+    fn fill_rows(&mut self, start_row: usize, end_row: usize, colour: T);
 
     ///
     /// Set a pixel
