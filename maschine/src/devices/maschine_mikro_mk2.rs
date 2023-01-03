@@ -1,11 +1,10 @@
 use hidapi::{HidApi, HidDevice};
 
 use crate::colour::Colour;
-use crate::controller::Device;
 use crate::display::{Canvas, MonochromeCanvas};
 use crate::error::Error;
 use crate::events::{Button, Event, EventContext, EventTask};
-use crate::Pixel;
+use crate::{Device, MonoPixel};
 
 const INPUT_BUFFER_SIZE: usize = 512;
 
@@ -377,7 +376,9 @@ impl MaschineMikroMk2 {
     }
 }
 
-impl Device<Pixel> for MaschineMikroMk2 {
+impl Device for MaschineMikroMk2 {
+    type Pixel = MonoPixel;
+
     fn new() -> Result<Self, Error> {
         let hid_api = HidApi::new()?;
         Ok(MaschineMikroMk2 {
@@ -406,7 +407,7 @@ impl Device<Pixel> for MaschineMikroMk2 {
         }
     }
 
-    fn get_display(&mut self, display_idx: u8) -> Result<Box<&mut dyn Canvas<Pixel>>, Error> {
+    fn get_display(&mut self, display_idx: u8) -> Result<Box<&mut dyn Canvas<Self::Pixel>>, Error> {
         if display_idx != 0 {
             Err(Error::InvalidDisplay(display_idx))
         } else {

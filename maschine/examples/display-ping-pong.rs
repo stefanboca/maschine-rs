@@ -1,10 +1,10 @@
-use maschine::{Device, EventContext, EventTask, MaschineMk2, Pixel, ScrollDirection};
+use maschine::{get_device, EventContext, MonoPixel, ScrollDirection};
 
 fn main() {
-    let mut ctlr = MaschineMk2::new().unwrap();
+    let mut ctlr = get_device::<MonoPixel>().unwrap();
 
-    ctlr.get_display(0).unwrap().fill_row(7, Pixel::On);
-    ctlr.get_display(1).unwrap().fill_row(0, Pixel::On);
+    ctlr.get_display(0).unwrap().fill_row(7, MonoPixel::On);
+    ctlr.get_display(1).unwrap().fill_row(0, MonoPixel::On);
 
     let mut start_time = std::time::Instant::now();
     let mut step = 0;

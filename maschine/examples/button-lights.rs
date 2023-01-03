@@ -1,7 +1,7 @@
-use maschine::{Colour, Device, Event, EventContext, EventTask, MaschineMk2};
+use maschine::{get_device, Colour, Event, EventContext, MonoPixel};
 
 fn main() {
-    let mut ctlr = MaschineMk2::new().unwrap();
+    let mut ctlr = get_device::<MonoPixel>().unwrap();
 
     loop {
         // Allow controller to do work and update any events

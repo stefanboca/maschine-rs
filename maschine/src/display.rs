@@ -9,10 +9,10 @@ use std::cmp::{max, min};
 pub type Font = [(u8, [u8; 5]); 96];
 
 ///
-/// State of a pixel
+/// State of a monochrome pixel
 ///
 #[derive(Clone)]
-pub enum Pixel {
+pub enum MonoPixel {
     On,
     Off,
 }
@@ -86,7 +86,7 @@ pub trait Canvas<T: Clone> {
     fn fill_row(&mut self, row: usize, colour: T);
 
     /// Fill multiple rows with a single colour
-    fn fill_rows(&mut self, start_row: usize, end_row: usize, colour: Pixel);
+    fn fill_rows(&mut self, start_row: usize, end_row: usize, colour: MonoPixel);
 
     ///
     /// Set a pixel
@@ -170,7 +170,7 @@ impl MonochromeCanvas {
     }
 }
 
-impl Canvas<Pixel> for MonochromeCanvas {
+impl Canvas<MonoPixel> for MonochromeCanvas {
     fn width(&self) -> usize {
         self.width
     }
@@ -227,10 +227,10 @@ impl Canvas<Pixel> for MonochromeCanvas {
     ///
     /// Fill the entire display with a Pixel
     ///
-    fn fill(&mut self, colour: Pixel) {
+    fn fill(&mut self, colour: MonoPixel) {
         let value = match colour {
-            Pixel::On => 0xFFu8,
-            Pixel::Off => 0x00u8,
+            MonoPixel::On => 0xFFu8,
+            MonoPixel::Off => 0x00u8,
         };
 
         for byte in self.buffer.iter_mut() {
@@ -243,10 +243,10 @@ impl Canvas<Pixel> for MonochromeCanvas {
     ///
     /// Fill the entire canvas with a single colour
     ///
-    fn fill_row(&mut self, row: usize, colour: Pixel) {
+    fn fill_row(&mut self, row: usize, colour: MonoPixel) {
         let value = match colour {
-            Pixel::On => 0xFFu8,
-            Pixel::Off => 0x00u8,
+            MonoPixel::On => 0xFFu8,
+            MonoPixel::Off => 0x00u8,
         };
 
         let start = row * self.width;
@@ -261,10 +261,10 @@ impl Canvas<Pixel> for MonochromeCanvas {
     ///
     /// Fill the entire canvas with a single colour
     ///
-    fn fill_rows(&mut self, start_row: usize, end_row: usize, colour: Pixel) {
+    fn fill_rows(&mut self, start_row: usize, end_row: usize, colour: MonoPixel) {
         let value = match colour {
-            Pixel::On => 0xFFu8,
-            Pixel::Off => 0x00u8,
+            MonoPixel::On => 0xFFu8,
+            MonoPixel::Off => 0x00u8,
         };
 
         let start = start_row * self.width;
@@ -279,7 +279,7 @@ impl Canvas<Pixel> for MonochromeCanvas {
     ///
     /// Set a pixel
     ///
-    fn set_pixel(&mut self, x: usize, y: usize, colour: Pixel) {
+    fn set_pixel(&mut self, x: usize, y: usize, colour: MonoPixel) {
         let width = self.width();
         let height = self.height();
         if (x > width) | (y > height) {
@@ -288,8 +288,8 @@ impl Canvas<Pixel> for MonochromeCanvas {
 
         let byte_index = (width * (y >> 3)) + x;
         match colour {
-            Pixel::On => self.buffer[byte_index] |= 1 << (y & 7),
-            Pixel::Off => self.buffer[byte_index] &= !(1 << (y & 7)),
+            MonoPixel::On => self.buffer[byte_index] |= 1 << (y & 7),
+            MonoPixel::Off => self.buffer[byte_index] &= !(1 << (y & 7)),
         }
 
         self.dirty = true;
@@ -298,27 +298,38 @@ impl Canvas<Pixel> for MonochromeCanvas {
     ///
     /// Get state of a pixel
     ///
-    fn pixel(&self, x: usize, y: usize) -> Option<Pixel> {
+    fn pixel(&self, x: usize, y: usize) -> Option<MonoPixel> {
         if (x > self.width) | (y > self.height) {
             return None;
         }
 
         let byte_index = (self.width * (y >> 3)) + x;
         let pixel = self.buffer[byte_index] >> ((y & 7) & 0x01);
-        Some(if pixel == 0 { Pixel::Off } else { Pixel::On })
+        Some(if pixel == 0 {
+            MonoPixel::Off
+        } else {
+            MonoPixel::On
+        })
     }
 
     ///
     /// Copy canvas
     ///
-    fn copy_from(&mut self, canvas: &dyn Canvas<Pixel>) {
+    fn copy_from(&mut self, canvas: &dyn Canvas<MonoPixel>) {
         self.buffer = canvas.data().to_vec();
     }
 
     ///
     /// Print single character
     ///
-    fn print_char(&mut self, c: char, row: usize, col: usize, font: &Font, colour: Pixel) -> usize {
+    fn print_char(
+        &mut self,
+        c: char,
+        row: usize,
+        col: usize,
+        font: &Font,
+        colour: MonoPixel,
+    ) -> usize {
         let raw = c as usize;
         if !(0x20..=0x7F).contains(&raw) {
             return 0;
@@ -327,8 +338,8 @@ impl Canvas<Pixel> for MonochromeCanvas {
         let (width, glyph) = font[char_idx];
         for (slice, px) in glyph.iter().enumerate().take(width as usize) {
             self.buffer[(row * self.width) + col + slice] = match colour {
-                Pixel::On => px << 2,
-                Pixel::Off => !(px << 2),
+                MonoPixel::On => px << 2,
+                MonoPixel::Off => !(px << 2),
             }
         }
         self.dirty = true;
