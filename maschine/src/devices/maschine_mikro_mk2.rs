@@ -1,10 +1,8 @@
-use hidapi::{HidApi, HidDevice};
-
 use crate::error::Error;
 use crate::events::{Button, Event, EventContext, EventTask};
-use crate::gfx::monochrome_canvas::MonochromeCanvas;
-use crate::gfx::{Canvas, Color};
-use crate::Device;
+use crate::{Color, Device};
+use hidapi::{HidApi, HidDevice};
+use raqote::DrawTarget;
 
 const INPUT_BUFFER_SIZE: usize = 512;
 
@@ -93,8 +91,6 @@ const PAD_COUNT: usize = 16;
 const DISPLAY_ADDR: u8 = 0xE0;
 const LED_ADDR: u8 = 0x80;
 
-type MaschineMikroMk2Canvas = MonochromeCanvas<128, 64, 1024, 4>;
-
 ///
 /// Maschine Mikro Mk2 Controller
 ///
@@ -103,7 +99,8 @@ type MaschineMikroMk2Canvas = MonochromeCanvas<128, 64, 1024, 4>;
 pub struct MaschineMikroMk2 {
     device: HidDevice,
     tick_state: u8,
-    display: MaschineMikroMk2Canvas,
+    display: DrawTarget,
+    display_dirty: bool,
     leds: [u8; LED_COUNT],
     leds_dirty: bool,
     button_states: [bool; BUTTON_COUNT],
@@ -119,7 +116,19 @@ impl MaschineMikroMk2 {
 
     /// Send a display frame for the graphics panel
     fn send_frame(&mut self) -> Result<(), Error> {
-        if self.display.is_dirty() {
+        let img_data: Vec<u8> = self
+            .display
+            .get_data()
+            .chunks(8)
+            .map(|data| {
+                data.iter()
+                    .enumerate()
+                    .map(|(i, d)| (((d & 0x00808080) > 0) as u8) << (8 - i))
+                    .sum()
+            })
+            .collect();
+
+        if self.display_dirty {
             for row in (0..8).step_by(2) {
                 // The number of referenced bytes must be <= 256
                 // Eg Column width * number of rows
@@ -135,11 +144,11 @@ impl MaschineMikroMk2 {
                     0x00,      // ?
                 ];
                 let x_offset = row * 128;
-                buffer.extend_from_slice(&self.display.buffer()[x_offset..(x_offset + 256)]);
+                buffer.extend_from_slice(&img_data[x_offset..(x_offset + 256)]);
                 self.device.write(buffer.as_slice())?;
             }
         }
-        self.display.clear_dirty();
+        self.display_dirty = false;
 
         Ok(())
     }
@@ -193,9 +202,9 @@ impl MaschineMikroMk2 {
                     self.set_led(
                         LED_SHIFT,
                         if button_pressed {
-                            Color::WHITE
+                            Color::new(0xFF, 0xFF, 0xFF, 0xFF)
                         } else {
-                            Color::BLACK
+                            Color::new(0xFF, 0x00, 0x00, 0x00)
                         },
                     );
                 } else {
@@ -265,13 +274,16 @@ impl MaschineMikroMk2 {
         let base = led as usize;
 
         if self.is_rgb_led(led) {
-            let rgb = color.as_array_rgb();
-            self.leds[base] = rgb[0];
-            self.leds[base + 1] = rgb[1];
-            self.leds[base + 2] = rgb[2];
+            self.leds[base] = color.r();
+            self.leds[base + 1] = color.g();
+            self.leds[base + 2] = color.b();
             self.leds_dirty = true;
         } else {
-            let m = if color.is_active() { 0xFF } else { 0x00 };
+            let m = if color.r() > 0x80 || color.g() > 0x80 || color.b() > 0x80 {
+                0xFF
+            } else {
+                0x00
+            };
             self.leds_dirty = m != self.leds[base];
             self.leds[base] = m;
         }
@@ -381,7 +393,8 @@ impl Device for MaschineMikroMk2 {
         Ok(MaschineMikroMk2 {
             device: hid_api.open(MaschineMikroMk2::VENDOR_ID, MaschineMikroMk2::PRODUCT_ID)?,
             tick_state: 0,
-            display: MaschineMikroMk2Canvas::new(),
+            display: DrawTarget::new(128, 64),
+            display_dirty: true,
             leds: [0; LED_COUNT],
             leds_dirty: true,
             button_states: [false; BUTTON_COUNT],
@@ -404,10 +417,11 @@ impl Device for MaschineMikroMk2 {
         }
     }
 
-    fn get_display(&mut self, display_idx: u8) -> Result<&mut dyn Canvas, Error> {
+    fn get_display(&mut self, display_idx: u8) -> Result<&mut DrawTarget, Error> {
         if display_idx != 0 {
             Err(Error::InvalidDisplay(display_idx))
         } else {
+            self.display_dirty = true;
             Ok(&mut self.display)
         }
     }

@@ -3,12 +3,11 @@
 pub mod devices;
 mod error;
 mod events;
-// pub mod fonts;
-pub mod gfx;
 
 pub use devices::{Device, MaschineMikroMk2, MaschineMk2};
 pub use error::Error;
 pub use events::{Event, EventContext, EventTask};
+pub use raqote::Color;
 
 pub fn get_device() -> Result<Box<dyn Device>, Error> {
     if let Ok(device) = MaschineMikroMk2::new() {

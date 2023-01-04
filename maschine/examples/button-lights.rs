@@ -1,4 +1,4 @@
-use maschine::{get_device, Event, EventContext, gfx::Color};
+use maschine::{get_device, Color, Event, EventContext};
 
 fn main() {
     let mut ctlr = get_device().unwrap();
@@ -15,9 +15,9 @@ fn main() {
             match event {
                 Event::Button(button, pressed, shift) => {
                     if pressed {
-                        ctlr.set_button_led(button, Color::random());
+                        ctlr.set_button_led(button, Color::new(0xFF, 0x00, 0x00, 0xFF));
                     } else if !shift {
-                        ctlr.set_button_led(button, Color::BLACK);
+                        ctlr.set_button_led(button, Color::new(0xFF, 0x00, 0x00, 0x00));
                     }
                 }
                 Event::Pad(pad, velocity, _shift) => {
@@ -25,10 +25,12 @@ fn main() {
                         pad,
                         if velocity != 0 {
                             let gamma = 2.0;
-                            let brightness = f64::round((256_f64).powf(1.0-gamma) * (velocity as f64).powf(gamma)) as u8;
-                            Color::from_rgb(brightness, 0, 0)
+                            let brightness = f64::round(
+                                (256_f64).powf(1.0 - gamma) * (velocity as f64).powf(gamma),
+                            ) as u8;
+                            Color::new(0xFF, brightness, 0, 0)
                         } else {
-                            Color::BLACK
+                            Color::new(0xFF, 0x00, 0x00, 0x00)
                         },
                     );
                 }

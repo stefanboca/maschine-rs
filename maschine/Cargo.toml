@@ -13,4 +13,5 @@ edition = "2021"
 [dependencies]
 rand = "0.8.5"
 hidapi = "2.0.2"
+raqote = "0.8.1"
 

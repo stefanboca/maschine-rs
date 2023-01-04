@@ -1,10 +1,8 @@
-use hidapi::{HidApi, HidDevice};
-
 use crate::error::Error;
 use crate::events::{Button, Event, EventContext, EventTask};
-use crate::gfx::monochrome_canvas::MonochromeCanvas;
-use crate::gfx::{Canvas, Color};
-use crate::Device;
+use crate::{Color, Device};
+use hidapi::{HidApi, HidDevice};
+use raqote::DrawTarget;
 
 const INPUT_BUFFER_SIZE: usize = 512;
 
@@ -142,8 +140,6 @@ const BUTTON_LED_COUNT: usize = 32;
 const GROUP_LED_COUNT: usize = 57;
 const PAD_LED_COUNT: usize = 49;
 
-type MaschineMk2Canvas = MonochromeCanvas<256, 64, 2048, 8>;
-
 ///
 /// Maschine Mk2 Controller
 ///
@@ -152,7 +148,8 @@ type MaschineMk2Canvas = MonochromeCanvas<256, 64, 2048, 8>;
 pub struct MaschineMk2 {
     device: HidDevice,
     tick_state: u8,
-    displays: [MaschineMk2Canvas; DISPLAY_COUNT as usize],
+    displays: [DrawTarget; DISPLAY_COUNT as usize],
+    displays_dirty: [bool; DISPLAY_COUNT as usize],
 
     button_leds: [u8; BUTTON_LED_COUNT],
     button_leds_dirty: bool,
@@ -179,7 +176,18 @@ impl MaschineMk2 {
         if display_idx >= DISPLAY_COUNT {
             return Err(Error::InvalidDisplay(display_idx));
         }
-        if self.displays[display_idx as usize].is_dirty() {
+        if self.displays_dirty[display_idx as usize] {
+            let img_data: Vec<u8> = self.displays[display_idx as usize]
+                .get_data()
+                .chunks(8)
+                .map(|data| {
+                    data.iter()
+                        .enumerate()
+                        .map(|(i, d)| (((d & 0x00808080) > 0) as u8) << (7 - i))
+                        .sum()
+                })
+                .collect();
+
             for chunk in 0..8 {
                 // The number of referenced bytes must be <= 256
                 // Eg Column width * number of rows
@@ -195,12 +203,12 @@ impl MaschineMk2 {
                     0x00,              // ?
                 ];
                 let x_offset = chunk * 256;
-                buffer.extend_from_slice(
-                    &self.displays[display_idx as usize].buffer()[x_offset..(x_offset + 256)],
-                );
+
+                buffer.extend_from_slice(&img_data[x_offset..(x_offset + 256)]);
+
                 self.device.write(buffer.as_slice())?;
             }
-            self.displays[display_idx as usize].clear_dirty();
+            self.displays_dirty[display_idx as usize] = false;
         }
 
         Ok(())
@@ -273,9 +281,9 @@ impl MaschineMk2 {
                     self.set_led(
                         LED_SHIFT,
                         if button_pressed {
-                            Color::WHITE
+                            Color::new(0xFF, 0xFF, 0xFF, 0xFF)
                         } else {
-                            Color::BLACK
+                            Color::new(0xFF, 0x00, 0x00, 0x00)
                         },
                     );
                 } else {
@@ -355,15 +363,14 @@ impl MaschineMk2 {
             if (LED_PAD13..=LED_PAD04).contains(&led) {
                 let pad_base = base - LED_PAD13 as usize;
 
-                let rgb = color.as_array_rgb();
-                self.pad_leds[pad_base] = rgb[0];
-                self.pad_leds[pad_base + 1] = rgb[1];
-                self.pad_leds[pad_base + 2] = rgb[2];
+                self.pad_leds[pad_base] = color.r();
+                self.pad_leds[pad_base + 1] = color.g();
+                self.pad_leds[pad_base + 2] = color.b();
                 self.pad_leds_dirty = true;
             } else if (LED_GROUPA..=LED_GROUPH).contains(&led) {
                 let group_base = base - LED_GROUPA as usize;
 
-                let rgb = color.as_array_rgb();
+                let rgb = [color.r(), color.g(), color.b()];
                 self.group_leds[group_base] = rgb[0];
                 self.group_leds[group_base + 1] = rgb[1];
                 self.group_leds[group_base + 2] = rgb[2];
@@ -373,7 +380,11 @@ impl MaschineMk2 {
                 self.group_leds_dirty = true;
             }
         } else {
-            let m = if color.is_active() { 0xFF } else { 0x00 };
+            let m = if color.r() > 0x80 || color.g() > 0x80 || color.b() > 0x80 {
+                0xFF
+            } else {
+                0x00
+            };
             if led >= LED_RESTART {
                 self.group_leds[base] = m;
                 self.group_leds_dirty = true;
@@ -527,7 +538,8 @@ impl Device for MaschineMk2 {
         Ok(MaschineMk2 {
             device: hid_api.open(MaschineMk2::VENDOR_ID, MaschineMk2::PRODUCT_ID)?,
             tick_state: 0,
-            displays: [MaschineMk2Canvas::new(), MaschineMk2Canvas::new()],
+            displays: [DrawTarget::new(256, 64), DrawTarget::new(256, 64)],
+            displays_dirty: [true; DISPLAY_COUNT as usize],
 
             button_leds: [0; BUTTON_LED_COUNT],
             button_leds_dirty: true,
@@ -558,10 +570,11 @@ impl Device for MaschineMk2 {
         }
     }
 
-    fn get_display(&mut self, display_idx: u8) -> Result<&mut dyn Canvas, Error> {
+    fn get_display(&mut self, display_idx: u8) -> Result<&mut DrawTarget, Error> {
         if display_idx >= DISPLAY_COUNT {
             Err(Error::InvalidDisplay(display_idx))
         } else {
+            self.displays_dirty[display_idx as usize] = true;
             Ok(&mut self.displays[display_idx as usize])
         }
     }
