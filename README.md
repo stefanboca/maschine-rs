@@ -4,22 +4,18 @@ This crate for interacting with a Native Instruments Maschine interface over USB
 
 These devices have a large number of buttons, velocity sensitive pads, rotary encoder and Dot-matrix LCD.
 
-Currently, only the *Maschine Mikro mk2* is supported.
+Currently, only the *Maschine Mk2* and *Maschine Mikro Mk2* are supported.
 
 ## Usage
 
 ## Example
 
 ```rust
-extern crate hidapi;
-
-use hidapi::HidApi;
-use maschine::{get_device, Canvas, Colour, Controller, Event, EventContext, EventTask};
+use maschine::{get_device, Canvas, Color, Controller, Event, EventContext, EventTask};
 
 
 fn main() {
-    let hid_api = HidApi::new().unwrap();
-    let mut ctlr = get_device(&hid_api).unwrap();
+    let mut ctlr = get_device().unwrap();
 
     loop {
         // Allow controller to do work and update any events
@@ -32,12 +28,12 @@ fn main() {
             match event {
                 Event::Button(button, pressed, shift) => {
                     if pressed {
-                        // If button is pressed assign it a random colour
-                        ctlr.set_button_led(button, Colour::random());
+                        // If button is pressed assign it a random color
+                        ctlr.set_button_led(button, Color::random());
                         println!("{:?}", button);
                     } else {
                         // Turn the LED off on release.
-                        ctlr.set_button_led(button, Colour::BLACK);
+                        ctlr.set_button_led(button, Color::BLACK);
                     }
                 }
                 // Print out other events
