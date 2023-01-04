@@ -1,7 +1,13 @@
 #![allow(dead_code)]
 
-mod canvas;
+pub mod monochrome_canvas;
+pub mod canvas;
 pub mod color;
-mod error;
-mod font;
-mod vec;
+pub mod error;
+pub mod font;
+pub mod vec;
+
+pub use canvas::Canvas;
+pub use color::Color;
+pub use vec::{UVec2, Vec2};
+pub use error::Error;

@@ -1,3 +1,5 @@
+use rand::Rng;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BlendMode {
     Normal,
@@ -29,6 +31,9 @@ impl Default for Color {
 impl Color {
     pub const WHITE: Color = Color::from_mono(0xFF);
     pub const BLACK: Color = Color::from_mono(0x00);
+    pub const RED: Color = Color::from_rgbm(0xFF, 0x00, 0x00, 0x00);
+    pub const GREEN: Color = Color::from_rgbm(0x00, 0xFF, 0x00, 0x00);
+    pub const BLUE: Color = Color::from_rgbm(0x00, 0x00, 0xFF, 0x00);
 
     pub const fn from_mono(mono: u8) -> Self {
         Color {
@@ -68,6 +73,11 @@ impl Color {
             m: 0,
             blend_mode,
         }
+    }
+
+    pub fn random() -> Self {
+        let mut rng = rand::thread_rng();
+        Color::from_rgb(rng.gen(), rng.gen(), rng.gen())
     }
 
     pub fn distance(&self, other: &Color) -> f64 {

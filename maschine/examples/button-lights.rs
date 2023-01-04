@@ -1,7 +1,7 @@
-use maschine::{get_device, Colour, Event, EventContext, MonoPixel};
+use maschine::{get_device, Event, EventContext, gfx::Color};
 
 fn main() {
-    let mut ctlr = get_device::<MonoPixel>().unwrap();
+    let mut ctlr = get_device().unwrap();
 
     loop {
         // Allow controller to do work and update any events
@@ -15,18 +15,20 @@ fn main() {
             match event {
                 Event::Button(button, pressed, shift) => {
                     if pressed {
-                        ctlr.set_button_led(button, Colour::random());
+                        ctlr.set_button_led(button, Color::random());
                     } else if !shift {
-                        ctlr.set_button_led(button, Colour::BLACK);
+                        ctlr.set_button_led(button, Color::BLACK);
                     }
                 }
                 Event::Pad(pad, velocity, _shift) => {
                     ctlr.set_pad_led(
                         pad,
                         if velocity != 0 {
-                            Colour::new(velocity, 0, 0)
+                            let gamma = 2.0;
+                            let brightness = f64::round((256_f64).powf(1.0-gamma) * (velocity as f64).powf(gamma)) as u8;
+                            Color::from_rgb(brightness, 0, 0)
                         } else {
-                            Colour::BLACK
+                            Color::BLACK
                         },
                     );
                 }

@@ -1,10 +1,10 @@
 use hidapi::{HidApi, HidDevice};
 
-use crate::colour::Colour;
-use crate::display::{Canvas, MonochromeCanvas};
 use crate::error::Error;
 use crate::events::{Button, Event, EventContext, EventTask};
-use crate::{Device, MonoPixel};
+use crate::gfx::monochrome_canvas::MonochromeCanvas;
+use crate::gfx::{Canvas, Color};
+use crate::Device;
 
 const INPUT_BUFFER_SIZE: usize = 512;
 
@@ -93,6 +93,8 @@ const PAD_COUNT: usize = 16;
 const DISPLAY_ADDR: u8 = 0xE0;
 const LED_ADDR: u8 = 0x80;
 
+type MaschineMikroMk2Canvas = MonochromeCanvas<128, 64, 1024, 4>;
+
 ///
 /// Maschine Mikro Mk2 Controller
 ///
@@ -101,7 +103,7 @@ const LED_ADDR: u8 = 0x80;
 pub struct MaschineMikroMk2 {
     device: HidDevice,
     tick_state: u8,
-    display: MonochromeCanvas,
+    display: MaschineMikroMk2Canvas,
     leds: [u8; LED_COUNT],
     leds_dirty: bool,
     button_states: [bool; BUTTON_COUNT],
@@ -133,11 +135,11 @@ impl MaschineMikroMk2 {
                     0x00,      // ?
                 ];
                 let x_offset = row * 128;
-                buffer.extend_from_slice(&self.display.data()[x_offset..(x_offset + 256)]);
+                buffer.extend_from_slice(&self.display.buffer()[x_offset..(x_offset + 256)]);
                 self.device.write(buffer.as_slice())?;
             }
         }
-        self.display.clear_dirty_flag();
+        self.display.clear_dirty();
 
         Ok(())
     }
@@ -191,9 +193,9 @@ impl MaschineMikroMk2 {
                     self.set_led(
                         LED_SHIFT,
                         if button_pressed {
-                            Colour::WHITE
+                            Color::WHITE
                         } else {
-                            Colour::BLACK
+                            Color::BLACK
                         },
                     );
                 } else {
@@ -258,21 +260,18 @@ impl MaschineMikroMk2 {
         Ok(())
     }
 
-    /// Set the colour of an LED
-    fn set_led(&mut self, led: u8, colour: Colour) {
+    /// Set the color of an LED
+    fn set_led(&mut self, led: u8, color: Color) {
         let base = led as usize;
 
         if self.is_rgb_led(led) {
-            let (r, g, b) = colour.components();
-
-            self.leds_dirty =
-                (r != self.leds[base]) | (g != self.leds[base + 1]) | (b != self.leds[base + 2]);
-
-            self.leds[base] = r >> 1;
-            self.leds[base + 1] = g >> 1;
-            self.leds[base + 2] = b >> 1;
+            let rgb = color.as_array_rgb();
+            self.leds[base] = rgb[0];
+            self.leds[base + 1] = rgb[1];
+            self.leds[base + 2] = rgb[2];
+            self.leds_dirty = true;
         } else {
-            let m = colour.as_1bit();
+            let m = if color.is_active() { 0xFF } else { 0x00 };
             self.leds_dirty = m != self.leds[base];
             self.leds[base] = m;
         }
@@ -377,14 +376,12 @@ impl MaschineMikroMk2 {
 }
 
 impl Device for MaschineMikroMk2 {
-    type Pixel = MonoPixel;
-
     fn new() -> Result<Self, Error> {
         let hid_api = HidApi::new()?;
         Ok(MaschineMikroMk2 {
             device: hid_api.open(MaschineMikroMk2::VENDOR_ID, MaschineMikroMk2::PRODUCT_ID)?,
             tick_state: 0,
-            display: MonochromeCanvas::new(128, 64),
+            display: MaschineMikroMk2Canvas::new(),
             leds: [0; LED_COUNT],
             leds_dirty: true,
             button_states: [false; BUTTON_COUNT],
@@ -395,23 +392,23 @@ impl Device for MaschineMikroMk2 {
         })
     }
 
-    fn set_button_led(&mut self, button: Button, colour: Colour) {
+    fn set_button_led(&mut self, button: Button, color: Color) {
         if let Some(led) = self.button_to_led(button) {
-            self.set_led(led, colour);
+            self.set_led(led, color);
         }
     }
 
-    fn set_pad_led(&mut self, pad: u8, colour: Colour) {
+    fn set_pad_led(&mut self, pad: u8, color: Color) {
         if let Some(led) = self.pad_to_led(pad) {
-            self.set_led(led, colour);
+            self.set_led(led, color);
         }
     }
 
-    fn get_display(&mut self, display_idx: u8) -> Result<Box<&mut dyn Canvas<Self::Pixel>>, Error> {
+    fn get_display(&mut self, display_idx: u8) -> Result<&mut dyn Canvas, Error> {
         if display_idx != 0 {
             Err(Error::InvalidDisplay(display_idx))
         } else {
-            Ok(Box::new(&mut self.display))
+            Ok(&mut self.display)
         }
     }
 }

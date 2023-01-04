@@ -1,10 +1,10 @@
 use hidapi::{HidApi, HidDevice};
 
-use crate::colour::Colour;
-use crate::display::{Canvas, MonochromeCanvas};
 use crate::error::Error;
 use crate::events::{Button, Event, EventContext, EventTask};
-use crate::{Device, MonoPixel};
+use crate::gfx::monochrome_canvas::MonochromeCanvas;
+use crate::gfx::{Canvas, Color};
+use crate::Device;
 
 const INPUT_BUFFER_SIZE: usize = 512;
 
@@ -141,6 +141,9 @@ const PAD_LED_ADDR: u8 = 0x80;
 const BUTTON_LED_COUNT: usize = 32;
 const GROUP_LED_COUNT: usize = 57;
 const PAD_LED_COUNT: usize = 49;
+
+type MaschineMk2Canvas = MonochromeCanvas<256, 64, 2048, 8>;
+
 ///
 /// Maschine Mk2 Controller
 ///
@@ -149,7 +152,7 @@ const PAD_LED_COUNT: usize = 49;
 pub struct MaschineMk2 {
     device: HidDevice,
     tick_state: u8,
-    displays: [MonochromeCanvas; DISPLAY_COUNT as usize],
+    displays: [MaschineMk2Canvas; DISPLAY_COUNT as usize],
 
     button_leds: [u8; BUTTON_LED_COUNT],
     button_leds_dirty: bool,
@@ -193,11 +196,11 @@ impl MaschineMk2 {
                 ];
                 let x_offset = chunk * 256;
                 buffer.extend_from_slice(
-                    &self.displays[display_idx as usize].data()[x_offset..(x_offset + 256)],
+                    &self.displays[display_idx as usize].buffer()[x_offset..(x_offset + 256)],
                 );
                 self.device.write(buffer.as_slice())?;
             }
-            self.displays[display_idx as usize].clear_dirty_flag();
+            self.displays[display_idx as usize].clear_dirty();
         }
 
         Ok(())
@@ -270,9 +273,9 @@ impl MaschineMk2 {
                     self.set_led(
                         LED_SHIFT,
                         if button_pressed {
-                            Colour::WHITE
+                            Color::WHITE
                         } else {
-                            Colour::BLACK
+                            Color::BLACK
                         },
                     );
                 } else {
@@ -344,33 +347,33 @@ impl MaschineMk2 {
         Ok(())
     }
 
-    /// Set the colour of an LED
-    fn set_led(&mut self, led: u8, colour: Colour) {
+    /// Set the color of an LED
+    fn set_led(&mut self, led: u8, color: Color) {
         let base = led as usize;
 
         if self.is_rgb_led(led) {
-            let (r, g, b) = colour.components();
-
             if (LED_PAD13..=LED_PAD04).contains(&led) {
                 let pad_base = base - LED_PAD13 as usize;
 
-                self.pad_leds[pad_base] = r;
-                self.pad_leds[pad_base + 1] = g;
-                self.pad_leds[pad_base + 2] = b;
+                let rgb = color.as_array_rgb();
+                self.pad_leds[pad_base] = rgb[0];
+                self.pad_leds[pad_base + 1] = rgb[1];
+                self.pad_leds[pad_base + 2] = rgb[2];
                 self.pad_leds_dirty = true;
             } else if (LED_GROUPA..=LED_GROUPH).contains(&led) {
                 let group_base = base - LED_GROUPA as usize;
 
-                self.group_leds[group_base] = r;
-                self.group_leds[group_base + 1] = g;
-                self.group_leds[group_base + 2] = b;
-                self.group_leds[group_base + 3] = r;
-                self.group_leds[group_base + 4] = g;
-                self.group_leds[group_base + 5] = b;
+                let rgb = color.as_array_rgb();
+                self.group_leds[group_base] = rgb[0];
+                self.group_leds[group_base + 1] = rgb[1];
+                self.group_leds[group_base + 2] = rgb[2];
+                self.group_leds[group_base + 3] = rgb[0];
+                self.group_leds[group_base + 4] = rgb[1];
+                self.group_leds[group_base + 5] = rgb[2];
                 self.group_leds_dirty = true;
             }
         } else {
-            let m = colour.as_1bit();
+            let m = if color.is_active() { 0xFF } else { 0x00 };
             if led >= LED_RESTART {
                 self.group_leds[base] = m;
                 self.group_leds_dirty = true;
@@ -519,17 +522,12 @@ impl MaschineMk2 {
 }
 
 impl Device for MaschineMk2 {
-    type Pixel = MonoPixel;
-
     fn new() -> Result<Self, Error> {
         let hid_api = HidApi::new()?;
         Ok(MaschineMk2 {
             device: hid_api.open(MaschineMk2::VENDOR_ID, MaschineMk2::PRODUCT_ID)?,
             tick_state: 0,
-            displays: [
-                MonochromeCanvas::new(256, 64),
-                MonochromeCanvas::new(256, 64),
-            ],
+            displays: [MaschineMk2Canvas::new(), MaschineMk2Canvas::new()],
 
             button_leds: [0; BUTTON_LED_COUNT],
             button_leds_dirty: true,
@@ -548,23 +546,23 @@ impl Device for MaschineMk2 {
         })
     }
 
-    fn set_button_led(&mut self, button: Button, colour: Colour) {
+    fn set_button_led(&mut self, button: Button, color: Color) {
         if let Some(led) = self.button_to_led(button) {
-            self.set_led(led, colour);
+            self.set_led(led, color);
         }
     }
 
-    fn set_pad_led(&mut self, pad: u8, colour: Colour) {
+    fn set_pad_led(&mut self, pad: u8, color: Color) {
         if let Some(led) = self.pad_to_led(pad) {
-            self.set_led(led, colour);
+            self.set_led(led, color);
         }
     }
 
-    fn get_display(&mut self, display_idx: u8) -> Result<Box<&mut dyn Canvas<Self::Pixel>>, Error> {
+    fn get_display(&mut self, display_idx: u8) -> Result<&mut dyn Canvas, Error> {
         if display_idx >= DISPLAY_COUNT {
             Err(Error::InvalidDisplay(display_idx))
         } else {
-            Ok(Box::new(&mut self.displays[display_idx as usize]))
+            Ok(&mut self.displays[display_idx as usize])
         }
     }
 }
