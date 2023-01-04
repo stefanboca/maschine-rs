@@ -1,9 +1,12 @@
+#![feature(slice_as_chunks)]
+
 mod colour;
 pub mod devices;
 mod display;
 mod error;
 mod events;
 pub mod fonts;
+mod gfx;
 
 pub use colour::Colour;
 pub use devices::Device;
